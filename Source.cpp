@@ -42,8 +42,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 			DWORD dwFonts;
 			hFontResource = AddFontMemResourceEx(pBuffer, dwSize, 0, &dwFonts);
+			if (!hFontResource)
+			{
+				return -1;
+			}
 		}
-		hFont = CreateFontW(FONT_SIZE, 0, 0, 0, FW_NORMAL, 0, 0, 0, ANSI_CHARSET, 0, 0, 0, 0, L"Let's go Digital");
+		hFont = CreateFontW(FONT_SIZE, 0, 0, 0, FW_NORMAL, 0, 0, 0, ANSI_CHARSET, 0, 0, 0, 0, L"DigitalNumber");
 		SendMessage(hWnd, WM_TIMER, 0, 0);
 		SetTimer(hWnd, 0x1234, 1, NULL);
 		break;
