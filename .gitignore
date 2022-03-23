@@ -3,3 +3,9 @@
 ################################################################################
 
 /.vs/clock/v17
+/x64/Debug/clock.tlog
+/x64/Debug
+/Debug
+/Release
+/x64/Release
+/clock.aps
