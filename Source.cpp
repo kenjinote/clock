@@ -28,9 +28,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			SystemTimeToVariantTime(&st, &vt);
 			SystemTimeToVariantTime(&st_, &vt_);
 			if (vt != vt_) {
-				OutputDebugString(L"szTime");
 				st = st_;
 				wsprintfW(szTime, L"%02d:%02d:%02d", st.wHour, st.wMinute, st.wSecond);
+				OutputDebugString(szTime);
+				OutputDebugString(L"\r\n");
 				InvalidateRect(hWnd, 0, 1);
 			}
 		}
