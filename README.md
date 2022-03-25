@@ -1,5 +1,5 @@
 # clock
-simple clock
+simple digital clock
 
 
 ![画面キャプチャー](https://github.com/kenjinote/clock/wiki/preview.png "画面キャプチャー")
