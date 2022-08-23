@@ -2,7 +2,7 @@
 # この .gitignore ファイルは Microsoft(R) Visual Studio によって自動的に作成されました。
 ################################################################################
 
-/.vs/clock/v17
+/.vs
 /x64/Debug/clock.tlog
 /x64/Debug
 /Debug

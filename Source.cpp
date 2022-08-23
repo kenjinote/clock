@@ -1,11 +1,14 @@
 ﻿#pragma comment(linker,"\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#pragma comment(lib, "dwmapi")
 
 #include <windows.h>
+#include <dwmapi.h>
 #include "resource.h"
 
 #define CLIENT_WIDTH 300
 #define CLIENT_HEIGHT 128
 #define FONT_SIZE (-75)
+#define BKCOLOR RGB(134, 161, 110)
 
 TCHAR szClassName[] = TEXT("clock");
 
@@ -16,6 +19,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	static HFONT hFont = NULL;
 	static SYSTEMTIME st = {};
 	static WCHAR szTime[32] = {};
+	static HDC hMemDC = 0;
+	static HBITMAP hBitmap;
+	static HBITMAP hOldBitmap;
 	switch (msg)
 	{
 	case WM_CREATE:
@@ -61,9 +67,57 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (vt != vt_) {
 				st = st_;
 				wsprintfW(szTime, L"%02d:%02d:%02d", st.wHour, st.wMinute, st.wSecond);
-				OutputDebugString(szTime);
-				OutputDebugString(L"\r\n");
-				InvalidateRect(hWnd, 0, 1);
+				// 描画
+				RECT rect = {};
+				GetClientRect(hWnd, &rect);
+				// 背景塗りつぶし
+				{
+					HBRUSH hBrush = CreateSolidBrush(BKCOLOR);
+					FillRect(hMemDC, &rect, hBrush);
+					DeleteObject(hBrush);
+				}
+				// 文字描画
+				{
+					HFONT hOldFont = (HFONT)SelectObject(hMemDC, hFont);
+					int nOldBkMode = SetBkMode(hMemDC, TRANSPARENT);
+					COLORREF cOldColor = SetTextColor(hMemDC, RGB(124, 150, 101));
+					DrawText(hMemDC, L"88:88:88", -1, &rect, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
+					SetTextColor(hMemDC, RGB(38, 41, 52));
+					DrawText(hMemDC, szTime, -1, &rect, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
+					SetTextColor(hMemDC, cOldColor);
+					SetBkMode(hMemDC, nOldBkMode);
+					SelectObject(hMemDC, hOldFont);
+				}
+				InvalidateRect(hWnd, 0, 0);
+			}
+		}
+		break;
+	case WM_APP:
+		if (hMemDC) {
+			if (hOldBitmap) {
+				SelectObject(hMemDC, hOldBitmap);
+			}
+			if (hBitmap) {
+				DeleteObject(hBitmap);
+				hBitmap = 0;
+			}
+			DeleteDC(hMemDC);
+			hMemDC = 0;
+		}
+		break;
+	case WM_SIZE:
+		{
+			SendMessage(hWnd, WM_APP, 0, 0);
+			HDC hdc = GetDC(hWnd);
+			if (hdc) {
+				hMemDC = CreateCompatibleDC(hdc);
+				if (hMemDC) {
+					RECT rect;
+					GetClientRect(hWnd, &rect);
+					hBitmap = CreateCompatibleBitmap(hdc, rect.right, rect.bottom);
+					hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
+				}
+				ReleaseDC(hWnd, hdc);
 			}
 		}
 		break;
@@ -71,15 +125,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			PAINTSTRUCT ps;
 			HDC hdc = BeginPaint(hWnd, &ps);
-			HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 			RECT rect = {};
 			GetClientRect(hWnd, &rect);
-			int nOldBkMode = SetBkMode(hdc, TRANSPARENT);
-			COLORREF cOldColor = SetTextColor(hdc, RGB(38, 41, 52));
-			DrawText(hdc, szTime, -1, &rect, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
-			SetTextColor(hdc, cOldColor);
-			SetBkMode(hdc, nOldBkMode);
-			SelectObject(hdc, hOldFont);
+			BitBlt(hdc, 0, 0, rect.right, rect.bottom, hMemDC, 0, 0, SRCCOPY);
 			EndPaint(hWnd, &ps);
 		}
 		break;
@@ -91,7 +139,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			return wParam;
 	case WM_DESTROY:
 		KillTimer(hWnd, 0x1234);
-		DeleteObject(hFont);
+		SendMessage(hWnd, WM_APP, 0, 0);
 		if (hFont)
 			DeleteObject(hFont);
 		if (hFontResource)
@@ -106,10 +154,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPreInst, LPWSTR pCmdLine, int nCmdShow)
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nShowCmd)
 {
 	MSG msg;
-	HBRUSH hBrush = CreateSolidBrush(RGB(130,135,103));
+	HBRUSH hBrush = CreateSolidBrush(BKCOLOR);
 	WNDCLASS wndclass = {
 		CS_HREDRAW | CS_VREDRAW,
 		WndProc,
@@ -141,6 +189,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPreInst, LPWSTR pCmdLine, in
 		hInstance,
 		0
 	);
+	// change caption color for windows 11
+	COLORREF bkColor = BKCOLOR;
+	BOOL SET_CAPTION_COLOR = SUCCEEDED(DwmSetWindowAttribute(
+		hWnd, 35/*DWMWINDOWATTRIBUTE::DWMWA_CAPTION_COLOR*/,
+		&bkColor, sizeof(COLORREF)));
 	ShowWindow(hWnd, SW_SHOWDEFAULT);
 	UpdateWindow(hWnd);
 	while (GetMessage(&msg, 0, 0, 0))
